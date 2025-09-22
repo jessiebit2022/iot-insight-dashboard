@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: iot-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=password123
+      - DOCKER_INFLUXDB_INIT_ORG=iot-org
+      - DOCKER_INFLUXDB_INIT_BUCKET=iot-data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=iot-token-123
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - iot-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: iot-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=iot-token-123
+      - INFLUXDB_ORG=iot-org
+      - INFLUXDB_BUCKET=iot-data
+    depends_on:
+      - influxdb
+    networks:
+      - iot-network
+
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    container_name: iot-api
+    ports:
+      - "3001:3001"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=iot-token-123
+      - INFLUXDB_ORG=iot-org
+      - INFLUXDB_BUCKET=iot-data
+    depends_on:
+      - influxdb
+    networks:
+      - iot-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: iot-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    depends_on:
+      - api
+    networks:
+      - iot-network
+
+volumes:
+  influxdb-data:
+
+networks:
+  iot-network:
+    driver: bridge
